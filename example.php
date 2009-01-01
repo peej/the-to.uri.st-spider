@@ -22,14 +22,14 @@ $indexPage = $indexUrl->get();
 foreach ($indexPage->match('/<li><b><a href="([^"]+)/') as $match) {
     
     // get the subpage
-    $continentUrl = new URL($match);
+    $continentUrl = new URL($match, $indexUrl);
     $continentPage = $continentUrl->get();
     
     // match each attracton page URL
     foreach ($continentPage->match('/<b><a href="([^"]+)/') as $match) {
         
         // get the attraction page
-        $itemUrl = new URL($match);
+        $itemUrl = new URL($match, $continentUrl);
         $itemPage = $itemUrl->get();
         
         // extract the address from the page and geocode it

@@ -43,10 +43,11 @@ class URL {
     
     /**
      * @param str url The URL to model
+     * @param str parentUrl The URL of the page this URL was on
      * @param str[] parameters Optional array of query name/value pairs
      */
-    public function __construct($url, $parameters = array()) {
-        $this->url = $url;
+    public function __construct($url, $parentUrl = NULL, $parameters = array()) {
+        $this->url = $this->makeAbsoluteUrl($url, $parentUrl);
         $this->parameters = $parameters;
     }
     
@@ -82,6 +83,58 @@ class URL {
         return substr($querystring, 1);
     }
     
+    private function makeAbsoluteUrl($url, $parentUrl = NULL) {
+		$url = html_entity_decode($url, ENT_NOQUOTES);
+		
+		if ($parentUrl) {
+			$parentUrlParts = parse_url($parentUrl);
+		} else {
+			$parentUrlParts = array();
+		}
+		
+		$urlParts = parse_url($url);
+		if (isset($urlParts['host']) && !isset($urlParts['path']) && !preg_match('/^[a-z]+:\/\//', $url)) { // not fully qualified
+			// parse_url might have decided that the path is the host, so fix that
+			$urlParts['path'] = $urlParts['host'];
+			unset($urlParts['host']);
+		}
+		if (isset($urlParts['scheme']) && $urlParts['scheme']) {
+			return str_replace(' ', '%20', $url);
+		} else {
+			$url = $parentUrlParts['scheme'];
+		}
+		$url .= '://';
+		if (isset($urlParts['host']) && $urlParts['host']) {
+			$url .= $urlParts['host'];
+		} else {
+			$url .= $parentUrlParts['host'];
+		}
+		if (isset($urlParts['path']) && $urlParts['path']) {
+			if (substr($urlParts['path'], 0, 1) != '/') {
+				$path = dirname($parentUrlParts['path']);
+				if ($path != '.' && $path != '/' && $path != '\\') {
+					while (substr($urlParts['path'], 0, 3) == '../') { // sort out ..'s in path
+						$urlParts['path'] = substr($urlParts['path'], 3);
+						$path = dirname($path);
+					}
+					if ($path == '/') {
+						$path = '';	
+					}
+					$url .= $path.'/';
+				} else {
+					$url .= '/';
+				}
+			}
+			$url .= $urlParts['path'];
+		} else {
+			$url .= $parentUrlParts['path'];
+		}
+		if (isset($urlParts['query']) && $urlParts['query']) {
+			$url .= '?'.$urlParts['query'];
+		}
+		return str_replace(' ', '%20', $url);
+	}
+	
     /**
      * Perform a HTTP GET on the URL
      *
@@ -283,7 +336,7 @@ class Match implements Iterator {
  * into to.uri.st.
  */
 class Data {
-    private $source, $file, $author;
+    private $source, $file, $author, $count = 0;
     
     /**
      * @param str $source Identify the source of the data, this is only used
@@ -359,10 +412,15 @@ class Data {
             if (!isset($data['description'])) $data['description'] = '';
             
             $data['title'] = $this->cleanData($data['title']);
+            if (!$data['title']) {
+                Talkie::msg('Can not add data, no title');
+                return FALSE;
+            }
+            
             $data['description'] = $this->cleanData($data['description']);
             
             if (!isset($data['type'])) {
-                $description = $data['title'].$data['description'];
+                $description = $data['title'].' '.$data['description'];
                 $data['type'] = 'unknown';
                 if (preg_match('/(shop|market)/i', $description)) {
                     $data['type'] = 'shop';
@@ -386,17 +444,17 @@ class Data {
             if ($data['description']) {
                 $words = explode(' ', $data['description']);
                 $numberOfWords = count($words) < 40 ? count($words) : 40;
-                $description = '';
+                $data['description'] = '';
                 for ($foo = 0; $foo < $numberOfWords; $foo++) {
-                    $description .= $words[$foo].' ';
+                    $data['description'] .= $words[$foo].' ';
                 }
-                $description = substr($description, 0, -1);
+                $data['description'] = substr($description, 0, -1);
                 if ($foo == 39) {
-                    $description .= '...';
+                    $data['description'] .= '...';
                 }
                 $free = 'n';
             } else {
-                $description = '{{todo}}';
+                $data['description'] = '{{todo}}';
                 $free = 'y';
             }
             
@@ -414,8 +472,21 @@ class Data {
                 date('Y-m-d H:i:s')
             ));
             
+            $this->count++;
             Talkie::msg('Data added "'.$data['title'].'"');
             return TRUE;
+        }
+    }
+    
+    /**
+     * Display the given data in a test situation
+     *
+     * @param str[] data Name/value pairs of data to add to the data store. Must
+     *    include a title and a lat/lng.
+     */
+    public function test($data) {
+        foreach ($data as $name => $value) {
+            Talkie::msg($name.' = "'.$this->cleanData($value).'"');
         }
     }
     
@@ -465,7 +536,7 @@ class Data {
      */
     public function done() {
         fclose($this->file);
-        Talkie::msg("Done!");
+        Talkie::msg("Read ".$this->count." items");
     }
 }
 
