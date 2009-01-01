@@ -1,0 +1,55 @@
+The to.uri.st Web spider
+========================
+
+https://github.com/peej/the-to.uri.st-spider
+
+The to.uri.st Web spider is an HTTP spider to pull tourist attraction data from
+the public Web into the to.uri.st attraction database.
+
+== About
+
+This tool can be used to pull data from public Web sites into a format that can
+be loaded into the to.uri.st (http://to.uri.st/) open tourist attraction
+database.
+
+== Requirements
+
+PHP 5.1+ CLI with the CURL extension
+
+== Usage
+
+The core library spider.php is not designed to be executed directly, instead it
+should be envoked from another PHP script that uses the library to extract and
+process the data.
+
+The file example.php gives an example of this usage.
+
+The library spider.php contains doc comments outlining the libraries objects and
+public interfaces.
+
+== Legal
+
+Copyright (c) 2009, Paul James
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the <organization> nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY <copyright holder> ''AS IS'' AND ANY
+EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL <copyright holder> BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

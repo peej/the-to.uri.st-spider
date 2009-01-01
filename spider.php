@@ -1,9 +1,30 @@
 <?php
 
+/**
+ * @var str CACHE The directory name to store cached HTTP responses in. This
+ *    directory must be writable by the user running the script.
+ * @final
+ */
 if (!defined('CACHE')) define('CACHE', 'cache');
+
+/**
+ * @var str CHARSET The character set of the pages that will be downloaded. Any
+ *    charset is a valid value, common values include "ISO-8859-1" and "UTF-8".
+ * @final
+ */
 if (!defined('CHARSET')) define('CHARSET', 'ISO-8859-1');
-//if (!defined('CHARSET')) define('CHARSET', 'UTF-8');
+
+/**
+ * @var str GEOCODER Which geocoder to use. Valid values are "google", "yahoo"
+      and "hybrid".
+ * @final
+ */
 if (!defined('GEOCODER')) define('GEOCODER', 'hybrid');
+
+/**
+ * @var str VERBOSE Turn on verbose output from CURL.
+ * @final
+ */
 if (!defined('VERBOSE')) define('VERBOSE', FALSE);
 
 abstract class Talkie {
@@ -12,11 +33,18 @@ abstract class Talkie {
     }
 }
 
+/**
+ * The URL object models a URL and allows it to be deferenced into a Page object.
+ */
 class URL {
     private $url, $parameters;
     
     static private $cookiejar = array();
     
+    /**
+     * @param str url The URL to model
+     * @param str[] parameters Optional array of query name/value pairs
+     */
     public function __construct($url, $parameters = array()) {
         $this->url = $url;
         $this->parameters = $parameters;
@@ -26,6 +54,12 @@ class URL {
         return (String)$this->url;
     }
     
+    /**
+     * Add a query name/value pair to the URL
+     *
+     * @param str name
+     * @param str value
+     */
     public function param($name, $value = NULL) {
         if (is_array($name)) {
             foreach ($name as $field => $value) {
@@ -44,22 +78,40 @@ class URL {
         return substr($querystring, 1);
     }
     
+    /**
+     * Perform a HTTP GET on the URL
+     *
+     * @return Page
+     */
     public function get() {
-        return $this->httpRequest('get');
-        $urlString = $this->url;
-        Talkie::msg('GETing '.$urlString);
-        if ($this->inCache($urlString)) {
-            $contents = $this->readFromCache($urlString);
+        if (extension_loaded('curl')) {
+            return $this->httpRequest('get');
         } else {
-            $contents = file_get_contents($urlString);
-            $content = iconv(CHARSET, 'UTF-8', $content);
-            $this->writeToCache($urlString, $contents);
+            $urlString = $this->url;
+            Talkie::msg('GETing '.$urlString);
+            if ($this->inCache($urlString)) {
+                $contents = $this->readFromCache($urlString);
+            } else {
+                $contents = file_get_contents($urlString);
+                $content = iconv(CHARSET, 'UTF-8', $content);
+                $this->writeToCache($urlString, $contents);
+            }
+            return new Page($urlString, $contents);
         }
-        return new Page($urlString, $contents);
     }
     
+    /**
+     * Perform a HTTP POST on the URL
+     *
+     * @return Page
+     */
     public function post() {
-        return $this->httpRequest('post');
+        if (extension_loaded('curl')) {
+            return $this->httpRequest('post');
+        } else {
+            Talkie::msg('Cannot POST to URL, CURL library not available');
+            return NULL;
+        }
     }
     
     private function httpRequest($method = 'get') {
@@ -154,9 +206,16 @@ class URL {
     }
 }
 
+/**
+ * The Page object models a downloaded Web page.
+ */
 class Page {
     private $url, $contents = '';
     
+    /**
+     * @param str url The URL of the page
+     * @param str contents The body of the page
+     */
     public function __construct($url, $contents) {
         $this->url = $url;
         $this->contents = $contents;
@@ -166,12 +225,22 @@ class Page {
         return (String)$this->contents;
     }
     
+    /**
+     * Run a regular expression match against the page body and return all the
+     * matches.
+     *
+     * @param str regex Regular expression to match upon
+     * @return Match
+     */
     public function match($regex) {
         preg_match_all($regex, $this->contents, $matches);
         return new Match($matches);
     }
 }
 
+/**
+ * Iterator object of regular expression matches as returned by Page::match()
+ */
 class Match implements Iterator {
     private $matches;
     
@@ -205,15 +274,34 @@ class Match implements Iterator {
     }
 }
 
+/**
+ * The data object captures the data and writes it into a CSV format for loading
+ * into to.uri.st.
+ */
 class Data {
     private $data, $source, $author;
     
+    /**
+     * @param str $source Identify the source of the data, this is only used
+     *    internally but should be set to the domain name of the site the data
+     *    is from.
+     * @param str $author Optional string of the name of the person scraping the
+     *    data, this will be shown on to.uri.st as the author of the attraction.
+     */
     public function __construct($source, $author = NULL) {
         $this->data = array();
         $this->source = $source;
         $this->author = $author;
     }
     
+    /**
+     * Clean up character encoding and remove any nasty characters etc. Used
+     * when data is added to the data object, but also available to be used as
+     * required in other situations.
+     *
+     * @param str data The data to be cleaned
+     * @return str
+     */
     public function cleanData($data) {
 		$bad = array('&nbsp;', "\n", "\r");
 		$data = trim(preg_replace('/<[^>]+>/', ' ', str_replace($bad, ' ', $data)));
@@ -234,11 +322,20 @@ class Data {
 		return $data;
 	}
     
+    /**
+     * Add data to the data object
+     *
+     * @param str[] data Name/value pairs of data to add to the data store. Must
+     *    include a title and a lat/lng.
+     * @return bool
+     */
     public function add($data) {
         if (!isset($data['title'])) {
             Talkie::msg('Can not add data, no title');
+            return FALSE;
         } elseif (!isset($data['lat']) || !isset($data['lng'])) {
             Talkie::msg('Can not add data, no lat/lng');
+            return FALSE;
         } else {
             
             if (!isset($data['description'])) $data['description'] = '';
@@ -292,9 +389,18 @@ class Data {
                 'free' => $free,
             );
             Talkie::msg('Data added "'.$data['title'].'"');
+            return TRUE;
         }
     }
     
+    /**
+     * Geocode an address into a lat/lng pair of coordinates.
+     *
+     * @param str address The address to geocode
+     * @param str type The geocoder to use, options are "yahoo", "google" and
+     *    "hybrid" which falls back to Yahoo if Google returns no data.
+     * @return float[]
+     */
     public function geocode($address, $type = GEOCODER) {
         $address = preg_replace('/[\n\r\s]+/', ' ', trim($address));
         switch ($type) {
@@ -328,6 +434,12 @@ class Data {
 		}
 	}
     
+    /**
+     * Write the data to a CSV file
+     *
+     * @param str filename Optional filename of the file to write the data to
+     * @return bool
+     */
     public function write($filename = NULL) {
         if (!$filename) {
             $filename = $this->source.'.csv';
@@ -350,7 +462,9 @@ class Data {
                 ));
             }
             fclose($fp);
+            return TRUE;
         }
+        return FALSE;
     }
 }
 
