@@ -419,7 +419,7 @@ class Data {
             
             $data['description'] = $this->cleanData($data['description']);
             
-            if (!isset($data['type'])) {
+            if (!isset($data['type']) || !$data['type']) {
                 $description = $data['title'].' '.$data['description'];
                 $data['type'] = 'unknown';
                 if (preg_match('/(shop|market)/i', $description)) {
