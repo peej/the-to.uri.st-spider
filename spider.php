@@ -336,7 +336,8 @@ class Match implements Iterator {
  * into to.uri.st.
  */
 class Data {
-    private $source, $file, $author, $count = 0;
+    private $source, $file, $author;
+    private $total = 0, $added = 0;
     
     /**
      * @param str $source Identify the source of the data, this is only used
@@ -398,6 +399,7 @@ class Data {
      * @return bool
      */
     public function add($data) {
+        $this->total++;
         if (!isset($data['title'])) {
             Talkie::msg('Can not add data, no title');
             return FALSE;
@@ -460,19 +462,19 @@ class Data {
             
             fwrite($this->file, sprintf(
                 '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"'."\n",
-                str_replace('"', '\"', $data['title']),
-                str_replace('"', '\"', $data['description']),
-                str_replace('"', '\"', $data['lat']),
-                str_replace('"', '\"', $data['lng']),
-                str_replace('"', '\"', $data['type']),
-                str_replace('"', '\"', $free),
-                str_replace('"', '\"', $data['href']),
-                str_replace('"', '\"', $this->source),
-                str_replace('"', '\"', $this->author),
+                str_replace('"', '""', $data['title']),
+                str_replace('"', '""', $data['description']),
+                str_replace('"', '""', $data['lat']),
+                str_replace('"', '""', $data['lng']),
+                str_replace('"', '""', $data['type']),
+                str_replace('"', '""', $free),
+                str_replace('"', '""', $data['href']),
+                str_replace('"', '""', $this->source),
+                str_replace('"', '""', $this->author),
                 date('Y-m-d H:i:s')
             ));
             
-            $this->count++;
+            $this->added++;
             Talkie::msg('Data added "'.$data['title'].'"');
             return TRUE;
         }
@@ -536,7 +538,7 @@ class Data {
      */
     public function done() {
         fclose($this->file);
-        Talkie::msg("Read ".$this->count." items");
+        Talkie::msg("Added ".$this->added." of ".$this->total." items");
     }
 }
 
