@@ -149,30 +149,30 @@ class URL {
         return new Page($urlString, $contents);
     }
     
-	private function setDefaultCurlOptions($curl) {
-		curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
-		curl_setopt($curl, CURLOPT_FOLLOWLOCATION, TRUE);
-		curl_setopt($curl, CURLOPT_MAXREDIRS, 10);
-		curl_setopt($curl, CURLOPT_TIMEOUT, 160);
-		curl_setopt($curl, CURLOPT_USERAGENT, 'to.uri.st');
-		if (VERBOSE) curl_setopt($curl, CURLOPT_VERBOSE, TRUE);
-		curl_setopt($curl, CURLOPT_HEADER, TRUE);
-		curl_setopt($curl, CURLOPT_COOKIE, join('; ', URL::$cookiejar));
-	}
+    private function setDefaultCurlOptions($curl) {
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, TRUE);
+        curl_setopt($curl, CURLOPT_MAXREDIRS, 10);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 160);
+        curl_setopt($curl, CURLOPT_USERAGENT, 'to.uri.st');
+        if (VERBOSE) curl_setopt($curl, CURLOPT_VERBOSE, TRUE);
+        curl_setopt($curl, CURLOPT_HEADER, TRUE);
+        curl_setopt($curl, CURLOPT_COOKIE, join('; ', URL::$cookiejar));
+    }
     
     private function processHTTPResponse($response) {
-		$parts = explode("\r\n\r\n", $response);
-		$headers = array();
-		foreach ($parts as $part) {
-			if (substr($part, 0, 4) == 'HTTP') {
-				$headers = array_merge($headers, explode("\r\n", array_shift($parts)));
-			}
-		}
-		$this->setRequestCookie($headers);
-		$content = join("\r\n\r\n", $parts);
-		$content = iconv(CHARSET, 'UTF-8', $content);
-		return $content;
-	}
+        $parts = explode("\r\n\r\n", $response);
+        $headers = array();
+        foreach ($parts as $part) {
+            if (substr($part, 0, 4) == 'HTTP') {
+                $headers = array_merge($headers, explode("\r\n", array_shift($parts)));
+            }
+        }
+        $this->setRequestCookie($headers);
+        $content = join("\r\n\r\n", $parts);
+        $content = iconv(CHARSET, 'UTF-8', $content);
+        return $content;
+    }
     
     private function setRequestCookie($headers) {
         foreach ($headers as $header) {
@@ -182,7 +182,7 @@ class URL {
                 URL::$cookiejar[$name[0]] = $parts[0];
             }
         }
-	}
+    }
     
     private function inCache($url) {
         $urlHash = md5($url);
@@ -279,7 +279,7 @@ class Match implements Iterator {
  * into to.uri.st.
  */
 class Data {
-    private $data, $source, $author;
+    private $source, $file, $author;
     
     /**
      * @param str $source Identify the source of the data, this is only used
@@ -288,10 +288,21 @@ class Data {
      * @param str $author Optional string of the name of the person scraping the
      *    data, this will be shown on to.uri.st as the author of the attraction.
      */
-    public function __construct($source, $author = NULL) {
+    public function __construct($source, $filename = NULL, $author = NULL) {
         $this->data = array();
         $this->source = $source;
         $this->author = $author;
+        
+        if (!$filename) {
+            $filename = $this->source.'.csv';
+        }
+        if ($this->file = fopen($filename, 'w')) {
+            Talkie::msg('Writing file "'.$filename.'"');
+            fwrite($this->file, "title,description,lat,lng,type,free,source,author,created\n");
+        } else {
+            Talkie::msg('Could not open file "'.$filename.'"');
+            exit;
+        }
     }
     
     /**
@@ -345,49 +356,54 @@ class Data {
             
             $description = $data['title'].$data['description'];
             $placeType = 'unknown';
-			if (preg_match('/(shop|market)/i', $description)) {
-				$placeType = 'shop';
-			} elseif (preg_match('/historic/i', $description)) {
-				$placeType = 'historic';
-			} elseif (preg_match('/sport/i', $description)) {
-				$placeType = 'sport';
-			} elseif (preg_match('/(nature|park)/i', $description)) {
-				$placeType = 'nature';
-			} elseif (preg_match('/museum/i', $description)) {
-				$placeType = 'museum';
-			} elseif (preg_match('/(theatre|gallery)/i', $description)) {
-				$placeType = 'theatre';
-			} elseif (preg_match('/theme park/i', $description)) {
-				$placeType = 'themepark';
-			} elseif (preg_match('/(zoo|farm)/i', $description)) {
-				$placeType = 'zoo';
-			}
-			
-			if ($data['description']) {
-				$words = explode(' ', $data['description']);
-				$numberOfWords = count($words) < 40 ? count($words) : 40;
-				$description = '';
-				for ($foo = 0; $foo < $numberOfWords; $foo++) {
-					$description .= $words[$foo].' ';
-				}
-				$description = substr($description, 0, -1);
-				if ($foo == 39) {
-					$description .= '...';
-				}
-				$free = 'n';
-			} else {
-				$description = '{{todo}}';
-				$free = 'y';
-			}
+            if (preg_match('/(shop|market)/i', $description)) {
+                $placeType = 'shop';
+            } elseif (preg_match('/historic/i', $description)) {
+                $placeType = 'historic';
+            } elseif (preg_match('/sport/i', $description)) {
+                $placeType = 'sport';
+            } elseif (preg_match('/(nature|park)/i', $description)) {
+                $placeType = 'nature';
+            } elseif (preg_match('/museum/i', $description)) {
+                $placeType = 'museum';
+            } elseif (preg_match('/(theatre|gallery)/i', $description)) {
+                $placeType = 'theatre';
+            } elseif (preg_match('/theme park/i', $description)) {
+                $placeType = 'themepark';
+            } elseif (preg_match('/(zoo|farm)/i', $description)) {
+                $placeType = 'zoo';
+            }
             
-            $this->data[] = array(
-                'title' => $data['title'],
-                'description' => $description,
-                'lat' => $data['lat'],
-                'lng' => $data['lng'],
-                'type' => $placeType,
-                'free' => $free,
-            );
+            if ($data['description']) {
+                $words = explode(' ', $data['description']);
+                $numberOfWords = count($words) < 40 ? count($words) : 40;
+                $description = '';
+                for ($foo = 0; $foo < $numberOfWords; $foo++) {
+                    $description .= $words[$foo].' ';
+                }
+                $description = substr($description, 0, -1);
+                if ($foo == 39) {
+                    $description .= '...';
+                }
+                $free = 'n';
+            } else {
+                $description = '{{todo}}';
+                $free = 'y';
+            }
+            
+            fwrite($this->file, sprintf(
+                '"%s","%s","%s","%s","%s","%s","%s","%s","%s"'."\n",
+                str_replace('"', '\"', $data['title']),
+                str_replace('"', '\"', $data['description']),
+                str_replace('"', '\"', $data['lat']),
+                str_replace('"', '\"', $data['lng']),
+                str_replace('"', '\"', $placeType),
+                str_replace('"', '\"', $free),
+                str_replace('"', '\"', $this->source),
+                str_replace('"', '\"', $this->author),
+                date('Y-m-d H:i:s')
+            ));
+            
             Talkie::msg('Data added "'.$data['title'].'"');
             return TRUE;
         }
@@ -418,53 +434,27 @@ class Data {
     
     private function geocodeGoogle($address) {
         Talkie::msg('Geocoding using Google');
-		$url = new URL('http://www.google.com/uds/GlocalSearch?callback=globalSearchResults&context=0&v=1.0&q='.urlencode($address));
-		$contents = $url->get();
-		if (preg_match('/"lat":"([0-9.-]+)","lng":"([0-9.-]+)",/', $contents, $matches)) {
-			return array($matches[1], $matches[2]);
-		}
-	}
+        $url = new URL('http://www.google.com/uds/GlocalSearch?callback=globalSearchResults&context=0&v=1.0&q='.urlencode($address));
+        $contents = $url->get();
+        if (preg_match('/"lat":"([0-9.-]+)","lng":"([0-9.-]+)",/', $contents, $matches)) {
+            return array($matches[1], $matches[2]);
+        }
+    }
     
     private function geocodeYahoo($address) {
-		Talkie::msg('Geocoding using Yahoo');
+        Talkie::msg('Geocoding using Yahoo');
         $url = new URL('http://local.yahooapis.com/MapsService/V1/geocode?appid=YEoM9IbV34FN9ruRngvbeeBcyAFiwtgCwitBH32vWJIGMjCQJbf0rTwYVqezOpMy&location='.urlencode($address));
-		$contents = $url->get();
+        $contents = $url->get();
         if (preg_match('/<Latitude>([0-9.-]+)<\/Latitude><Longitude>([0-9.-]+)<\/Longitude>/', $contents, $matches)) {
-			return array($matches[1], $matches[2]);
-		}
-	}
+            return array($matches[1], $matches[2]);
+        }
+    }
     
     /**
-     * Write the data to a CSV file
-     *
-     * @param str filename Optional filename of the file to write the data to
-     * @return bool
+     * Finished writing data, close the file
      */
-    public function write($filename = NULL) {
-        if (!$filename) {
-            $filename = $this->source.'.csv';
-        }
-        Talkie::msg('Writing file "'.$filename.'"');
-        if ($fp = fopen($filename, 'w')) {
-            fwrite($fp, "title,description,lat,lng,type,free,source,author,created\n");
-            foreach ($this->data as $row) {
-                fwrite($fp, sprintf(
-                    '"%s","%s","%s","%s","%s","%s","%s","%s","%s"'."\n",
-                    str_replace('"', '\"', $row['title']),
-                    str_replace('"', '\"', $row['description']),
-                    str_replace('"', '\"', $row['lat']),
-                    str_replace('"', '\"', $row['lng']),
-                    str_replace('"', '\"', $row['type']),
-                    str_replace('"', '\"', $row['free']),
-                    str_replace('"', '\"', $this->source),
-                    str_replace('"', '\"', $this->author),
-                    date('Y-m-d H:i:s')
-                ));
-            }
-            fclose($fp);
-            return TRUE;
-        }
-        return FALSE;
+    public function done() {
+        fclose($this->file);
     }
 }
 
