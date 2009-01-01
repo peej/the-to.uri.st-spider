@@ -42,7 +42,8 @@ foreach ($indexPage->match('/<li><b><a href="([^"]+)/') as $match) {
             'title' => preg_replace('/\([^)]+\)/', '', $itemPage->match('/<title>(.+?) Guide/')),
             'description' => $itemPage->match('/<\/h2>[\r\n\t ]+<div class="paragraph">(.+?)<\/div>/'),
             'lat' => $lat,
-            'lng' => $lng
+            'lng' => $lng,
+            'href' => $itemUrl
         ));
         
     }

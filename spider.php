@@ -51,7 +51,11 @@ class URL {
     }
     
     public function __toString() {
-        return (String)$this->url;
+        if ($this->parameters) {
+            return (String)$this->url.'?'.$this->getQuerystring();
+        } else {
+            return (String)$this->url;
+        }
     }
     
     /**
@@ -186,19 +190,19 @@ class URL {
     
     private function inCache($url) {
         $urlHash = md5($url);
-        return file_exists(CACHE.DIRECTORY_SEPARATOR.substr($urlHash, 0, 1).DIRECTORY_SEPARATOR.$urlHash);
+        return file_exists(dirname(__FILE__).DIRECTORY_SEPARATOR.CACHE.DIRECTORY_SEPARATOR.substr($urlHash, 0, 1).DIRECTORY_SEPARATOR.$urlHash);
     }
     
     private function readFromCache($url) {
         $urlHash = md5($url);
-        $cacheFilename = CACHE.DIRECTORY_SEPARATOR.substr($urlHash, 0, 1).DIRECTORY_SEPARATOR.$urlHash;
+        $cacheFilename = dirname(__FILE__).DIRECTORY_SEPARATOR.CACHE.DIRECTORY_SEPARATOR.substr($urlHash, 0, 1).DIRECTORY_SEPARATOR.$urlHash;
         Talkie::msg('Reading cache file "'.$cacheFilename.'"');
         return file_get_contents($cacheFilename);
     }
     
     private function writeToCache($url, $contents) {
         $urlHash = md5($url);
-        $cacheDirName = CACHE.DIRECTORY_SEPARATOR.substr($urlHash, 0, 1);
+        $cacheDirName = dirname(__FILE__).DIRECTORY_SEPARATOR.CACHE.DIRECTORY_SEPARATOR.substr($urlHash, 0, 1);
         if (!is_dir($cacheDirName)) mkdir($cacheDirName);
         $cacheFilename = $cacheDirName.DIRECTORY_SEPARATOR.$urlHash;
         Talkie::msg('Writing cache file "'.$cacheFilename.'"');
@@ -298,7 +302,7 @@ class Data {
         }
         if ($this->file = fopen($filename, 'w')) {
             Talkie::msg('Writing file "'.$filename.'"');
-            fwrite($this->file, "title,description,lat,lng,type,free,source,author,created\n");
+            fwrite($this->file, "title,description,lat,lng,type,free,href,source,author,created\n");
         } else {
             Talkie::msg('Could not open file "'.$filename.'"');
             exit;
@@ -347,6 +351,9 @@ class Data {
         } elseif (!isset($data['lat']) || !isset($data['lng'])) {
             Talkie::msg('Can not add data, no lat/lng');
             return FALSE;
+        } elseif (!isset($data['href'])) {
+            Talkie::msg('Can not add data, no href given');
+            return FALSE;
         } else {
             
             if (!isset($data['description'])) $data['description'] = '';
@@ -354,24 +361,26 @@ class Data {
             $data['title'] = $this->cleanData($data['title']);
             $data['description'] = $this->cleanData($data['description']);
             
-            $description = $data['title'].$data['description'];
-            $placeType = 'unknown';
-            if (preg_match('/(shop|market)/i', $description)) {
-                $placeType = 'shop';
-            } elseif (preg_match('/historic/i', $description)) {
-                $placeType = 'historic';
-            } elseif (preg_match('/sport/i', $description)) {
-                $placeType = 'sport';
-            } elseif (preg_match('/(nature|park)/i', $description)) {
-                $placeType = 'nature';
-            } elseif (preg_match('/museum/i', $description)) {
-                $placeType = 'museum';
-            } elseif (preg_match('/(theatre|gallery)/i', $description)) {
-                $placeType = 'theatre';
-            } elseif (preg_match('/theme park/i', $description)) {
-                $placeType = 'themepark';
-            } elseif (preg_match('/(zoo|farm)/i', $description)) {
-                $placeType = 'zoo';
+            if (!isset($data['type'])) {
+                $description = $data['title'].$data['description'];
+                $data['type'] = 'unknown';
+                if (preg_match('/(shop|market)/i', $description)) {
+                    $data['type'] = 'shop';
+                } elseif (preg_match('/historic/i', $description)) {
+                    $data['type'] = 'historic';
+                } elseif (preg_match('/sport/i', $description)) {
+                    $data['type'] = 'sport';
+                } elseif (preg_match('/(nature|park)/i', $description)) {
+                    $data['type'] = 'nature';
+                } elseif (preg_match('/museum/i', $description)) {
+                    $data['type'] = 'museum';
+                } elseif (preg_match('/(theatre|gallery)/i', $description)) {
+                    $data['type'] = 'theatre';
+                } elseif (preg_match('/theme park/i', $description)) {
+                    $data['type'] = 'themepark';
+                } elseif (preg_match('/(zoo|farm)/i', $description)) {
+                    $data['type'] = 'zoo';
+                }
             }
             
             if ($data['description']) {
@@ -392,13 +401,14 @@ class Data {
             }
             
             fwrite($this->file, sprintf(
-                '"%s","%s","%s","%s","%s","%s","%s","%s","%s"'."\n",
+                '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"'."\n",
                 str_replace('"', '\"', $data['title']),
                 str_replace('"', '\"', $data['description']),
                 str_replace('"', '\"', $data['lat']),
                 str_replace('"', '\"', $data['lng']),
-                str_replace('"', '\"', $placeType),
+                str_replace('"', '\"', $data['type']),
                 str_replace('"', '\"', $free),
+                str_replace('"', '\"', $data['href']),
                 str_replace('"', '\"', $this->source),
                 str_replace('"', '\"', $this->author),
                 date('Y-m-d H:i:s')
@@ -455,6 +465,7 @@ class Data {
      */
     public function done() {
         fclose($this->file);
+        Talkie::msg("Done!");
     }
 }
 
